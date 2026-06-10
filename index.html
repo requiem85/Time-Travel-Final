@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Again</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#14161A;
+    --ink:#DAD8D1;
+    --ink-faint:rgba(218,216,209,0.07);
+    --ember:#C58A66;
+    --accent:#A9C0C2;
+    --vignette:0.18;
+    --ghost-x:3px;
+    --serif:'Newsreader','Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --mono:'Space Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--serif);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    transition:background 900ms ease, color 900ms ease;
+    overflow-x:hidden;
+  }
+
+  /* deepening vignette — the room narrowing as the loops wear on */
+  .vignette{
+    position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(120% 90% at 50% 42%, transparent 38%, var(--ground) 100%);
+    opacity:var(--vignette);
+    transition:opacity 1100ms ease, background 900ms ease;
+  }
+
+  .counter{
+    position:fixed; top:1.6rem; left:1.8rem; z-index:6;
+    font-family:var(--mono); font-size:0.66rem; letter-spacing:0.32em;
+    text-transform:uppercase; color:var(--ink); opacity:0.34;
+    transition:opacity 700ms ease; user-select:none;
+  }
+
+  .stage{
+    position:relative; z-index:2; min-height:100%;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:6rem 1.6rem 5rem; cursor:default;
+  }
+  .frame{position:relative; width:100%; max-width:33rem; margin:0 auto;}
+
+  /* palimpsest — the worn ghost of the turn before, bleeding through */
+  .ghost{
+    position:absolute; left:0; right:0; top:-0.4rem; z-index:1;
+    color:var(--ink-faint); font-size:1.24rem; line-height:1.72;
+    transform:translate(var(--ghost-x), 2px);
+    pointer-events:none; user-select:none; filter:blur(0.4px);
+  }
+  .ghost p{margin:0 0 1.1rem;}
+
+  .passage{position:relative; z-index:3;}
+  .passage p{
+    margin:0 0 1.25rem; font-size:1.26rem; line-height:1.72;
+    font-weight:300; letter-spacing:0.002em;
+  }
+  .passage p:last-child{margin-bottom:0;}
+
+  .reveal{opacity:0; transform:translateY(9px); transition:opacity 900ms ease, transform 900ms ease;}
+  .reveal.in{opacity:1; transform:none;}
+
+  .ember{color:var(--ember); transition:color 900ms ease;}
+  em{font-style:italic; color:var(--ink); opacity:0.92;}
+
+  /* the loop's own voice — cold, mechanical, lowercase */
+  .loopvoice{display:inline; font-family:var(--mono); font-size:0.9em; letter-spacing:0.04em; color:rgba(218,216,209,0.42);}
+  .again{font-family:var(--mono); font-size:0.74em; letter-spacing:0.06em; color:rgba(218,216,209,0.30); margin-left:0.15em;}
+
+  .choices{margin-top:2.6rem; display:flex; flex-direction:column; gap:0.95rem;}
+  .choice{
+    appearance:none; border:0; background:none; cursor:pointer;
+    font-family:var(--serif); font-size:1.075rem; font-weight:300; line-height:1.5;
+    color:var(--ink); text-align:left; padding:0.2rem 0; margin:0;
+    display:flex; gap:0.7rem; align-items:baseline;
+    opacity:0; transform:translateY(7px);
+    transition:opacity 800ms ease, transform 800ms ease, color 300ms ease;
+    pointer-events:none;
+  }
+  .choice.in{opacity:0.86; transform:none; pointer-events:auto;}
+  .choice .dash{flex:0 0 auto; width:1.1rem; height:1px; margin-top:0.82em; background:var(--ink); opacity:0.45; transition:width 320ms ease, background 320ms ease, opacity 320ms ease;}
+  .choice:hover, .choice:focus-visible{color:#fff; opacity:1; outline:none;}
+  .choice:hover .dash, .choice:focus-visible .dash{width:2rem; background:var(--ember); opacity:1;}
+  .choice:focus-visible{text-decoration:underline; text-decoration-color:var(--ember); text-underline-offset:5px;}
+  .choice.brk{color:var(--ink);}
+  .choice.brk:hover, .choice.brk:focus-visible{color:var(--accent);}
+  .choice.brk:hover .dash, .choice.brk:focus-visible .dash{background:var(--accent);}
+
+  .restart{margin-top:2.4rem; font-family:var(--mono); font-size:0.78rem; letter-spacing:0.18em; color:rgba(218,216,209,0.4); background:none; border:0; cursor:pointer; padding:0.3rem 0; transition:color 320ms ease;}
+  .restart:hover, .restart:focus-visible{color:var(--accent); outline:none; text-decoration:underline; text-underline-offset:5px;}
+
+  /* the reset flash between loops */
+  .overlay{position:fixed; inset:0; z-index:20; background:#0E0F11; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 650ms ease;}
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .overlay span{font-family:var(--mono); font-size:1.1rem; letter-spacing:0.5em; text-transform:lowercase; color:#DAD8D1; opacity:0; transition:opacity 500ms ease; padding-left:0.5em;}
+  .overlay.word span{opacity:0.7;}
+
+  /* the loop ledger — the accumulating record of everything you have tried */
+  .ledger{
+    position:fixed; right:1.5rem; bottom:1.4rem; z-index:7;
+    font-family:var(--mono); font-size:0.66rem; letter-spacing:0.2em; text-transform:lowercase;
+    color:var(--ink); opacity:0.32; background:none; border:0; cursor:pointer; padding:0.4rem;
+    transition:opacity 400ms ease, color 300ms ease; display:none;
+  }
+  .ledger.show{display:block;}
+  .ledger:hover, .ledger:focus-visible{opacity:0.72; color:var(--ember); outline:none;}
+
+  .ledger-backdrop{position:fixed; inset:0; z-index:14; background:rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity 350ms ease;}
+  .ledger-backdrop.show{opacity:1; pointer-events:auto;}
+  .ledger-panel{
+    position:fixed; left:50%; bottom:0; transform:translate(-50%,100%); z-index:15;
+    width:min(33rem,93vw); max-height:72vh; overflow:auto;
+    background:#101216; border-top:1px solid rgba(218,216,209,0.14);
+    box-shadow:0 -30px 60px rgba(0,0,0,0.55);
+    padding:1.8rem 1.7rem 2.1rem; transition:transform 480ms cubic-bezier(.16,.84,.34,1);
+    font-family:var(--mono); color:#DAD8D1;
+  }
+  .ledger-panel.show{transform:translate(-50%,0);}
+  .ledger-title{font-size:0.7rem; letter-spacing:0.3em; text-transform:lowercase; opacity:0.5; margin:0 0 0.5rem;}
+  .ledger-sub{font-size:0.66rem; letter-spacing:0.06em; opacity:0.35; margin:0 0 1.3rem;}
+  .ledger-list{list-style:none; margin:0; padding:0;}
+  .ledger-list li{font-size:0.92rem; line-height:1.45; color:rgba(218,216,209,0.8); padding:0.5rem 0; border-bottom:1px solid rgba(218,216,209,0.06); display:flex; justify-content:space-between; gap:1.2rem;}
+  .ledger-list li .n{opacity:0.42; flex:0 0 auto; font-variant-numeric:tabular-nums;}
+  .ledger-empty{font-size:0.9rem; opacity:0.5;}
+  .ledger-close{margin-top:1.6rem; font-family:var(--mono); font-size:0.7rem; letter-spacing:0.2em; text-transform:lowercase; color:rgba(218,216,209,0.6); background:none; border:1px solid rgba(218,216,209,0.18); padding:0.5rem 1.05rem; cursor:pointer; transition:color 300ms ease, border-color 300ms ease;}
+  .ledger-close:hover, .ledger-close:focus-visible{color:var(--ember); border-color:var(--ember); outline:none;}
+
+  /* the break — a held breath, centred, cool, calm */
+  body.broke{--ground:#101419; --ink:#E2E7E7; --ember:#A9C0C2; --vignette:0.10;}
+  body.broke .frame{max-width:30rem;}
+  body.broke .passage{text-align:center;}
+  body.broke .passage p{font-size:1.32rem; line-height:1.78; font-weight:300;}
+  body.broke .choices{align-items:center; margin-top:2.4rem;}
+  body.broke .choice{justify-content:center; text-align:center; font-size:1rem; color:rgba(226,231,231,0.66);}
+  body.broke .choice .dash{display:none;}
+  body.broke .restart{align-self:center;}
+
+  @media (max-width:560px){
+    .stage{padding:5rem 1.4rem 4rem;}
+    .passage p{font-size:1.16rem;}
+    .ghost{font-size:1.14rem;}
+    .counter{top:1.2rem; left:1.3rem;}
+    .choice{font-size:1.02rem;}
+    .ledger{right:1.1rem; bottom:1.1rem;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .reveal, .choice, .overlay, .ledger-panel{transition:opacity 0.001ms;}
+    .reveal, .choice{transform:none;}
+    .ledger-panel{transition:transform 0.001ms;}
+    .vignette, body{transition:none;}
+  }
+</style>
+</head>
+<body>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="counter" id="counter" aria-hidden="true"></div>
+
+  <main class="stage" id="stage" aria-live="polite">
+    <div class="frame">
+      <div class="ghost" id="ghost" aria-hidden="true"></div>
+      <div class="passage" id="passage"></div>
+      <div class="choices" id="choices"></div>
+    </div>
+  </main>
+
+  <button class="ledger" id="ledger" aria-haspopup="dialog" aria-expanded="false"></button>
+
+  <div class="ledger-backdrop" id="ledgerBackdrop"></div>
+  <div class="ledger-panel" id="ledgerPanel" role="dialog" aria-modal="true" aria-label="What you have tried">
+    <p class="ledger-title">what you have tried</p>
+    <p class="ledger-sub" id="ledgerSub"></p>
+    <ul class="ledger-list" id="ledgerList"></ul>
+    <button class="ledger-close" id="ledgerClose">set it down</button>
+  </div>
+
+  <div class="overlay" id="overlay" aria-hidden="true"><span>again</span></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Per-iteration palette. The ember (Sam, the thing being lost) drains toward
+  // grey as the loops repeat; the ground deadens; the room narrows.
+  // 'false' is the warm lie of the false victory. The true break is cool — set in CSS.
+  var palettes = {
+    0:       {ground:'#14161A', ink:'#DAD8D1', faint:'0.07', ember:'#C58A66', vign:0.16, gx:'3px'},
+    1:       {ground:'#14161A', ink:'#DAD8D1', faint:'0.07', ember:'#C58A66', vign:0.18, gx:'3px'},
+    2:       {ground:'#16171A', ink:'#D2D0C9', faint:'0.08', ember:'#B5836A', vign:0.26, gx:'5px'},
+    3:       {ground:'#18181A', ink:'#C9C7C1', faint:'0.09', ember:'#A2857A', vign:0.34, gx:'7px'},
+    4:       {ground:'#191A1B', ink:'#BFBEB8', faint:'0.10', ember:'#918A82', vign:0.42, gx:'9px'},
+    5:       {ground:'#1B1B1C', ink:'#B2B1AC', faint:'0.11', ember:'#7E7B77', vign:0.52, gx:'11px'},
+    'false': {ground:'#2B2720', ink:'#EFE8DA', faint:'0.05', ember:'#DBA570', vign:0.07, gx:'0px'}
+  };
+
+  var nodes = {
+    intro: { it:0, html:[
+        'You have done this before.',
+        'You will do it again.'
+      ], choices:[ {t:'Open the door.', to:'i1a'} ] },
+
+    // ---- iteration 1 : the first, innocent pass ----
+    i1a: { it:1, html:[
+        'The hallway light is the colour of a held breath. Behind the door, <span class="ember">Sam</span> is folding shirts into a bag with the patience of someone who has already decided.',
+        'You came to fix it. You have always been good at fixing things.'
+      ], choices:[ {t:'Knock.', to:'i1b'}, {t:'Just go in.', to:'i1b'} ] },
+    i1b: { it:1, html:[
+        '<span class="ember">Sam</span> looks up. There is no surprise left in it &mdash; only a tiredness you know you put there.',
+        'The bag is half full. There is still time, you think. There is still a right thing to say.'
+      ], choices:[
+        {t:'&ldquo;I am sorry. I will change.&rdquo;', to:'i1c', log:'Said sorry, promised to change'},
+        {t:'&ldquo;Do not go. Please.&rdquo;', to:'i1c', log:'Asked Sam not to go'},
+        {t:'&ldquo;Let me explain.&rdquo;', to:'i1c', log:'Tried to explain yourself'}
+      ] },
+    i1c: { it:1, html:[
+        'The words land the way they always do &mdash; softly, like snow on a fire.',
+        '<span class="ember">Sam</span> zips the bag. <em>I know you mean it</em>, Sam says. The door is heavier on the way out.'
+      ], auto:{to:'i2a', delay:1700} },
+
+    // ---- iteration 2 : memory wakes; a cruel flicker of hope; the first wrong detail ----
+    i2a: { it:2, html:[
+        'The hallway. The bag. The shirts. You know this &mdash; you are almost certain you have stood here before, in this same thin light.',
+        'The bag is grey. You could swear it used to be blue. <span class="loopvoice">small things keep changing places.</span>',
+        'This time will be different. This time you will find the words.'
+      ], choices:[ {t:'Say nothing. Watch.', to:'i2b'}, {t:'Go to <span class="ember">Sam</span>.', to:'i2b'} ] },
+    i2b: { it:2, html:[
+        'For once you do not speak first. <span class="ember">Sam</span> folds, and folds, and finally looks up. Something flickers &mdash; hope, maybe. Yours, not Sam&rsquo;s.',
+        '<em>You are quiet tonight</em>, Sam says. The folding slows.'
+      ], choices:[
+        {t:'Tell <span class="ember">Sam</span> how afraid you are.', to:'i2c', log:'Told Sam you were afraid'},
+        {t:'Make it lighter &mdash; the old joke.', to:'i2c', log:'Reached for the old joke'},
+        {t:'Promise it will be different.', to:'i2c', log:'Promised it would be different'}
+      ] },
+    i2c: { it:2, html:[
+        'For a breath, <span class="ember">Sam</span> stays. The bag sits open. You think: this is it, the loop is bending&mdash;',
+        'Then the sad smile. The last shirt, folded. <em>It is not the words</em>, Sam says. <em>It was never the words.</em>'
+      ], auto:{to:'i3a', delay:1800} },
+
+    // ---- iteration 3 : the loop leaks. the ledger reveals itself. ----
+    i3a: { it:3, openLedger:true, html:[
+        '<span class="loopvoice">&mdash; iteration three &mdash;</span>',
+        'The hallway. The light. And on the counter, a sheet of paper that was not there before.',
+        'It is a note in your own handwriting. You do not remember writing it. It is a list, and the list is long, and every line on it is something you have already said to <span class="ember">Sam</span>.'
+      ], choices:[ {t:'Set the list down and go in.', to:'i3b'}, {t:'Read it twice.', to:'i3b', reopen:true} ] },
+    i3b: { it:3, html:[
+        'You go to <span class="ember">Sam</span> with something new &mdash; something not on the list.',
+        'Sam answers before you finish. <em>You already tried that one</em>, Sam says, gently, like correcting a child. But you did not. Not this time. Not in this turning.',
+        'There was someone before Sam. The same hallway light. The same good intentions, lined up like cutlery. <span class="loopvoice">the loops are leaking into each other.</span>'
+      ], choices:[
+        {t:'Insist this time is different.', to:'i3c', log:'Insisted this time was different'},
+        {t:'Ask how many times there have been.', to:'i3c', log:'Asked how many times there had been'}
+      ] },
+    i3c: { it:3, html:[
+        'Sam does not answer the question. Sam never does.',
+        'The door. The sound. The breath let go. The list on the counter is one line longer.'
+      ], auto:{to:'i4a', delay:1700} },
+
+    // ---- iteration 4 : the perfect machine, the visible fork, the false victory ----
+    i4a: { it:4, html:[
+        '<span class="loopvoice">&mdash; iteration four &mdash;</span>',
+        'You have stopped improvising. You have a plan now, assembled from every turning: the exact words, the exact order, the perfect machine of a conversation. There are two ways in.'
+      ], choices:[
+        {t:'Open soft &mdash; warmth first, then the truth.', to:'i4r1'},
+        {t:'Open clean &mdash; the truth first, then the warmth.', to:'i4r2'}
+      ] },
+    i4r1: { it:4, html:[
+        'You lead with warmth. You name the good years. You make <span class="ember">Sam</span> laugh, once, before you turn toward the hard thing.',
+        'Sam sets down a shirt. <span class="loopvoice">the two roads are already curving toward the same place.</span>'
+      ], choices:[ {t:'Say the rest.', to:'i4b'} ] },
+    i4r2: { it:4, html:[
+        'You lead with the truth, bare and early, the way you never dared before. Then you fold the warmth in after, to soften the landing.',
+        'Sam sets down a shirt. <span class="loopvoice">the two roads are already curving toward the same place.</span>'
+      ], choices:[ {t:'Say the rest.', to:'i4b'} ] },
+    i4b: { it:'false', html:[
+        'And it works.',
+        'Sam stops packing. Sam sits down on the edge of the bed, slowly, like setting down something heavy. <em>Okay</em>, Sam says. <em>Okay. I&rsquo;ll stay.</em>',
+        'The hallway light warms. The thin air fills. Something in your chest unclenches for the first time in a hundred turnings.'
+      ], choices:[ {t:'Hold perfectly still.', to:'i4win'} ] },
+    i4win: { it:'false', html:[
+        'You hold still. You do not breathe. You have won. You have finally, finally won&mdash;',
+        'and the light goes thin again.',
+        'The bag refills itself at the edge of your eye. The shirts unfold. The deciding settles back into <span class="ember">Sam</span>&rsquo;s face like dust returning to a surface. <span class="loopvoice">you got what you asked for. it was just another room.</span>',
+        'Staying was never the door out.'
+      ], auto:{to:'i5a', delay:2100} },
+
+    // ---- iteration 5 : the fracture. the only door left is inward. ----
+    i5a: { it:5, html:[
+        'You do not reach the door this time. You are already inside the moment, worn smooth from the handling.',
+        'The shirts. The bag. <span class="ember">Sam</span>, looking up. You know now that the right words hold Sam exactly as long as the wrong ones do. That winning and losing are two doors into the same hallway.',
+        'It was never this room. It was never the words. It was the part of you that would rather be perfect than be left. <span class="loopvoice">you have changed every word. you have never once changed yourself.</span>'
+      ], choices:[
+        {t:'Apologise again. Find the cleaner phrasing.', to:'i5loop', log:'Looked for cleaner phrasing'},
+        {t:'Build a better machine of words.', to:'i5loop', log:'Built a better machine of words'},
+        {t:'Stop. Say the true thing &mdash; that you are not afraid of losing <span class="ember">Sam</span>. You are afraid of being someone people leave.', to:'b1', kind:'break'}
+      ] },
+    i5loop: { it:5, html:[
+        'The words are cleaner this time. They change nothing.',
+        'The door. The sound. The breath let go. <span class="loopvoice">again. again. again.</span>'
+      ], auto:{to:'i5a', delay:1500} },
+
+    // ---- the break : not a victory. a different kind of ending. ----
+    b1: { it:'break', html:[
+        'You stop.',
+        'You do not reach for the bag, or the door, or the right arrangement of words. Somewhere, a list stops growing.',
+        '<em>I am scared</em>, you say. <em>Not of you leaving. Of being someone people leave.</em>'
+      ], choices:[ {t:'(the room goes very quiet)', to:'b2'} ] },
+    b2: { it:'break', html:[
+        'Sam sets the shirt down. Sam does not unpack it. Sam does not stay.',
+        'But Sam crosses the room and, for the first time in a hundred turnings, holds your face in both hands. <em>I know</em>, Sam says. <em>I am still going. But you finally said the true thing.</em>'
+      ], choices:[ {t:'(the door opens)', to:'b3'} ] },
+    b3: { it:'break', html:[
+        'The door opens. The door closes. The hallway light is only light.',
+        'You do not go back. For the first time, the moment is allowed to end.'
+      ], restart:true }
+  };
+
+  // ---- elements ----
+  var stage = document.getElementById('stage');
+  var passageEl = document.getElementById('passage');
+  var choicesEl = document.getElementById('choices');
+  var ghostEl = document.getElementById('ghost');
+  var counterEl = document.getElementById('counter');
+  var overlay = document.getElementById('overlay');
+  var ledgerBtn = document.getElementById('ledger');
+  var ledgerBackdrop = document.getElementById('ledgerBackdrop');
+  var ledgerPanel = document.getElementById('ledgerPanel');
+  var ledgerList = document.getElementById('ledgerList');
+  var ledgerSub = document.getElementById('ledgerSub');
+  var ledgerClose = document.getElementById('ledgerClose');
+
+  // ---- state ----
+  var current = null, prevHtml = null;
+  var revealTimers = [], autoTimer = null;
+  var revealing = false, completedFlag = false;
+  var chosen = Object.create(null);
+  var tried = [];          // ordered list of tactic labels, with repeats
+  var ledgerOpen = false;
+
+  function clearReveal(){ revealTimers.forEach(clearTimeout); revealTimers = []; }
+  function clearAuto(){ if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; } }
+  function numericIt(node){ return typeof node.it === 'number' && node.it >= 1; }
+
+  function applyPalette(node){
+    var key = node.it;
+    var broke = (key === 'break');
+    document.body.classList.toggle('broke', broke);
+    var r = document.documentElement.style;
+    if(broke){
+      ['--ground','--ink','--ink-faint','--ember','--vignette'].forEach(function(v){ r.removeProperty(v); });
+      r.setProperty('--ghost-x','0px');
+    } else {
+      var p = palettes[key] || palettes[1];
+      r.setProperty('--ground', p.ground);
+      r.setProperty('--ink', p.ink);
+      r.setProperty('--ink-faint', 'rgba(218,216,209,'+p.faint+')');
+      r.setProperty('--ember', p.ember);
+      r.setProperty('--vignette', String(p.vign));
+      r.setProperty('--ghost-x', p.gx);
+    }
+  }
+
+  function setCounter(node){
+    if(numericIt(node)){
+      counterEl.textContent = 'iteration ' + ('00' + node.it).slice(-3);
+      counterEl.style.opacity = '0.34';
+    } else {
+      counterEl.textContent = '';
+      counterEl.style.opacity = '0';
+    }
+  }
+
+  function norm(s){ var d = document.createElement('div'); d.innerHTML = s; return (d.textContent||'').toLowerCase().replace(/[^a-z]/g,''); }
+
+  // ---- ledger ----
+  function updateLedgerButton(node){
+    var visible = tried.length > 0 && numericIt(node);
+    ledgerBtn.classList.toggle('show', visible);
+    if(visible){ ledgerBtn.textContent = '\u00b7 tried ' + tried.length; }
+  }
+  function renderLedger(){
+    ledgerList.innerHTML = '';
+    if(tried.length === 0){
+      var li = document.createElement('li'); li.className = 'ledger-empty';
+      li.textContent = 'nothing yet.'; ledgerList.appendChild(li); ledgerSub.textContent = '';
+      return;
+    }
+    var order = [], counts = {};
+    tried.forEach(function(t){ if(counts[t] === undefined){ counts[t] = 0; order.push(t); } counts[t]++; });
+    order.forEach(function(t){
+      var li = document.createElement('li');
+      var label = document.createElement('span'); label.textContent = t;
+      var n = document.createElement('span'); n.className = 'n';
+      n.textContent = counts[t] > 1 ? ('\u00d7' + counts[t]) : '';
+      li.appendChild(label); li.appendChild(n); ledgerList.appendChild(li);
+    });
+    ledgerSub.textContent = tried.length + ' attempt' + (tried.length === 1 ? '' : 's') + ', none of them the true thing.';
+  }
+  function openLedger(){
+    renderLedger();
+    ledgerOpen = true;
+    ledgerBackdrop.classList.add('show');
+    ledgerPanel.classList.add('show');
+    ledgerBtn.setAttribute('aria-expanded','true');
+    try{ ledgerClose.focus({preventScroll:true}); }catch(e){ ledgerClose.focus(); }
+  }
+  function closeLedger(){
+    ledgerOpen = false;
+    ledgerBackdrop.classList.remove('show');
+    ledgerPanel.classList.remove('show');
+    ledgerBtn.setAttribute('aria-expanded','false');
+  }
+  ledgerBtn.addEventListener('click', function(){ ledgerOpen ? closeLedger() : openLedger(); });
+  ledgerClose.addEventListener('click', closeLedger);
+  ledgerBackdrop.addEventListener('click', closeLedger);
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && ledgerOpen) closeLedger(); });
+
+  // ---- reveal ----
+  function revealComplete(node){
+    if(completedFlag) return;
+    completedFlag = true; revealing = false;
+    if(node.openLedger) openLedger();
+    if(node.auto){
+      autoTimer = setTimeout(function(){ go(node.auto.to, {loop:true}); }, REDUCED ? 900 : node.auto.delay);
+    }
+    var first = choicesEl.querySelector('.choice');
+    if(first && !REDUCED && !node.openLedger){ try{ first.focus({preventScroll:true}); }catch(e){ first.focus(); } }
+  }
+
+  function render(node){
+    clearReveal(); clearAuto();
+    completedFlag = false; revealing = true;
+
+    applyPalette(node);
+    setCounter(node);
+    updateLedgerButton(node);
+
+    var showGhost = prevHtml && numericIt(node) && node.it >= 2;
+    ghostEl.innerHTML = showGhost ? prevHtml : '';
+    ghostEl.style.opacity = showGhost ? String(Math.min(0.10, 0.04 + node.it * 0.013)) : '0';
+
+    passageEl.innerHTML = '';
+    choicesEl.innerHTML = '';
+    var revealEls = [];
+
+    node.html.forEach(function(para){
+      var p = document.createElement('p'); p.className = 'reveal'; p.innerHTML = para;
+      passageEl.appendChild(p); revealEls.push(p);
+    });
+
+    (node.choices || []).forEach(function(ch){
+      var b = document.createElement('button');
+      b.className = 'choice reveal' + (ch.kind === 'break' ? ' brk' : '');
+      var marked = ch.tag || chosen[norm(ch.t)];
+      b.innerHTML = '<span class="dash" aria-hidden="true"></span><span class="label">' + ch.t +
+                    (marked ? ' <span class="again">(again)</span>' : '') + '</span>';
+      b.addEventListener('click', function(){ choose(ch); });
+      choicesEl.appendChild(b); revealEls.push(b);
+    });
+
+    if(node.restart){
+      var rb = document.createElement('button'); rb.className = 'restart reveal'; rb.textContent = 'begin again?';
+      rb.addEventListener('click', reset);
+      choicesEl.appendChild(rb); revealEls.push(rb);
+    }
+
+    if(REDUCED){
+      revealEls.forEach(function(el){ el.classList.add('in'); });
+      revealComplete(node);
+    } else {
+      var delay = 250, step = 430;
+      revealEls.forEach(function(el, i){ revealTimers.push(setTimeout(function(){ el.classList.add('in'); }, delay + i*step)); });
+      revealTimers.push(setTimeout(function(){ revealComplete(node); }, delay + revealEls.length*step));
+    }
+
+    window.scrollTo(0,0);
+  }
+
+  // clicking the page mid-reveal lets impatient readers skip the pacing
+  stage.addEventListener('click', function(e){
+    if(e.target.closest('.choice') || e.target.closest('.restart')) return;
+    if(!revealing) return;
+    clearReveal();
+    var els = stage.querySelectorAll('.reveal:not(.in)');
+    for(var i=0;i<els.length;i++){ els[i].classList.add('in'); }
+    if(current) revealComplete(current);
+  });
+
+  function choose(ch){
+    clearAuto();
+    if(ledgerOpen && !ch.reopen) closeLedger();
+    if(ch.reopen){ openLedger(); return; }
+    chosen[norm(ch.t)] = true;
+    if(ch.log) tried.push(ch.log);
+    if(ch.kind === 'break'){ go(ch.to, {clear:true}); }
+    else { go(ch.to, {}); }
+  }
+
+  // the reset flash: "again." — the loop snapping back into darkness
+  function loopFlash(){
+    return new Promise(function(resolve){
+      overlay.style.background = '#0E0F11';
+      overlay.classList.add('show');
+      requestAnimationFrame(function(){ overlay.classList.add('word'); });
+      var hold = REDUCED ? 350 : 1150;
+      setTimeout(function(){
+        overlay.classList.remove('word');
+        setTimeout(function(){ overlay.classList.remove('show'); resolve(); }, REDUCED ? 60 : 600);
+      }, hold);
+    });
+  }
+
+  function go(id, opts){
+    var node = nodes[id]; if(!node) return;
+    prevHtml = current ? current.html.join(' ') : null;
+
+    if(opts && opts.loop){
+      loopFlash().then(function(){ current = node; render(node); });
+    } else if(opts && opts.clear){
+      // the break gets a slow, quiet dissolve into cool light, not the harsh snap
+      overlay.style.background = '#101419';
+      overlay.classList.add('show');
+      setTimeout(function(){
+        current = node; render(node);
+        setTimeout(function(){ overlay.classList.remove('show'); }, 80);
+      }, REDUCED ? 120 : 820);
+    } else {
+      current = node; render(node);
+    }
+  }
+
+  function reset(){
+    clearReveal(); clearAuto(); closeLedger();
+    chosen = Object.create(null); tried = [];
+    prevHtml = null; current = null;
+    document.body.classList.remove('broke');
+    loopFlash().then(function(){ go('intro', {}); });
+  }
+
+  go('intro', {});
+})();
+</script>
+</body>
+</html>
